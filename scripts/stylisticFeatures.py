@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -20,6 +21,10 @@ import pyphen
 import re
 import string
 from collections import Counter
+from math import log2
+from numpy import linalg as LA
+import networkx as nx
+
 
 
 def get_parser():
@@ -32,12 +37,6 @@ def get_parser():
                     type=str,
                     default="", 
                     help="Input file" )
-    parser.add_argument('-f', '--iFolder',
-                    required=False,
-                    type=str,
-                    default="", 
-                    metavar="<inputFolder>",
-                    help="Input folder" )
     parser.add_argument('--stopWordFile',
                     required=False,
                     type=str,
@@ -52,18 +51,29 @@ def get_parser():
     return parser
 
 
-# Cleaning and processing
-def words(entry):
-    return filter(lambda w: len(w) > 0,
-                  [w.strip("0123456789!:,.?(){}[]") for w in entry.split()])
 
 def printResults(results, position):
     if (position is 'h'):
        print(results)
     else:
        for key, value in results.items():
-           #print(key.ljust(30, ' ') + " && " + str(value))  
-           print( " && " + str(value))  
+           print(key.ljust(30, ' ') + " & " + str(value))  
+           #print( " & " + str(value))  
+
+
+def removeSWList(document, stopwordsFile):
+    '''
+    Removes all stopwords appearing in stopwordsFile from a list of sentences
+    '''
+    fn = os.path.join(os.path.dirname(__file__), stopwordsFile)
+    with open(fn) as f:
+        functionWord = f.readlines()
+    for i in range(len(functionWord)):
+        functionWord[i] = functionWord[i].strip()    
+    cleanDocument = []
+    for sentence in document:
+        cleanDocument.append(" ".join([w for w in sentence.split() if not w in functionWord]))
+    return cleanDocument
 
 
 # Text statistics; character level; scope: collection
@@ -277,6 +287,16 @@ def yuleK(text):
        yuleK = 0
     return yuleK
 
+    
+def shannonEntropy(text):
+    '''
+    Entropy of the distribution
+    '''
+    word_list = text.split()
+    freqs = Counter(tok.lower() for tok in word_list)
+    numWords = sum(freqs.values()) 
+    return sum(freq/numWords * log2(numWords/freq) for freq in freqs.values())
+
 
 # Complexity measures word level; scope: collection
 # the variable 'document' is an array of sentences
@@ -409,6 +429,65 @@ def fleschSzigriszt(document, lan):
        return 0
 
 
+# Complexity measures, graph-based; scope: collection
+# the variable 'document' is an array of sentences
+# def adjG(document,W):
+def adjG(document):
+    '''
+    Building a graph from words in text, only for adjacent words, coocurrence words
+    # W: list(zip(*Counter(tok.lower()).most_common()))[0], all words ranked by frequency 
+    '''
+    G = nx.Graph()
+    for element in document:
+        sentence = element.split()
+        # filters out all the words that are not in the frequency list. Why? all of them should be there
+        #print(sentence)
+        #['mejoraremos', 'teleasistencia', 'coordinación', 'policial', 'judicial', 'protección', 'mujeres', 'maltratadas']
+        #sentence=list(filter(lambda x: x in W, sentence)) 
+        #print(sentence)
+        #['mejoraremos', 'teleasistencia', 'coordinación', 'policial', 'judicial', 'protección', 'mujeres', 'maltratadas']
+        if len(sentence)>1:
+            pairs=list(zip(sentence,sentence[1:]))
+            #print(pairs)
+            #[('mejoraremos', 'teleasistencia'), ('teleasistencia', 'coordinación'), ('coordinación', 'policial'), ('policial', 'judicial'), ('judicial', 'protección'), ('protección', 'mujeres'), ('mujeres', 'maltratadas')]
+            for pair in pairs:
+                if G.has_edge(pair[0],pair[1])==False:
+                    G.add_edge(pair[0],pair[1],weight=1)
+                else:
+                    x=G[pair[0]][pair[1]]['weight']
+                    G[pair[0]][pair[1]]['weight']=x+1        
+    return G
+
+
+def laplacianEnergy(G):
+    ''' 
+    Laplacian Energy for the graph G
+    normalized_laplacian_matrix(G, nodelist=None, weight="weight"):
+        N = D^{-1/2} L D^{-1/2}
+     where `L` is the graph Laplacian and `D` is the diagonal matrix of node degrees.
+    '''
+    # G = adjG(document)
+    M = nx.normalized_laplacian_matrix(G,weight='weight').todense()
+    eigs = LA.eigvals(M)
+    # max_eig = sorted(eigs)[1]
+    # Laplacian energy: sum of squares (not here!) of the eigenvalues in the Laplacian matrix
+    # normalized Laplacian energy, see paper
+    eigs = [np.abs(x-1) for x in eigs]
+    return [sum(eigs)/float(len(eigs))]
+
+
+def clusteringGraph(G):
+    '''
+    average_clustering(G, nodes=None, weight=None, count_zeros=True)[source]
+    The clustering coefficient for the graph is the average,
+    C = \frac{1}{n}\sum_{v \in G} c_v,
+    where n is the number of nodes in G.
+    For weighted graphs, the clustering of a node c_v is defined as the geometric average of the subgraph edge weights
+    '''
+    return nx.average_clustering(G)
+
+
+
 
 def main(args=None):
 
@@ -422,44 +501,51 @@ def main(args=None):
     with open(args.iFile) as f:
          sentences = [line.rstrip() for line in f]
     with open(args.iFile) as f:
-         sentencesNoPunctDic = [line.rstrip().translate(str.maketrans('', '', string.punctuation)).translate(str.maketrans('', '', string.digits)) for line in f]
+         sentencesNoPunctDig = [line.rstrip().translate(str.maketrans('', '', string.punctuation)).translate(str.maketrans('', '', string.digits)) for line in f]
+    textNoPuncDig = text.translate(str.maketrans('', '', string.punctuation))
+    textNoPuncDig = textNoPuncDig.translate(str.maketrans('', '', string.digits))
 
     # initialise results as a dictionary
     results = {}
 
     # text statistics measures
-    results['# sentences'] = len(sentences)
-    results['# tokens'] = numWords(text)
-    results['# types'] = numTypes(text.lower())
-    results['% digits'] = round(digit_pctg(text)*100,2)
-    results['% uppercase'] = round(uppercase_pctg(text)*100,2)
-    results['% punctuation'] = round(punctuation_pctg(text)*100,2)
-    results['% funtion words'] = round(functionWords_freq(text.lower(), args.stopWordFile)*100,2)
+    results['\# sentences'] = len(sentences)
+    results['\# tokens'] = numWords(text)
+    results['\# types'] = numTypes(text.lower())
+    results['\% digits (dig)'] = round(digit_pctg(text)*100,2)
+    results['\% uppercase'] = round(uppercase_pctg(text)*100,2)
+    results['\% punctuation (punc)'] = round(punctuation_pctg(text)*100,2)
+    results['\% funtion words'] = round(functionWords_freq(text.lower(), args.stopWordFile)*100,2)
+    results['\# words (w/o punc,dig)'] = numWords(textNoPuncDig)
     results['sentence length'] = round(sentenceLength(sentences),2)
     results['token length'] = round(wordLength(text),2)
-
-    textNoPuncDig = text.translate(str.maketrans('', '', string.punctuation))
-    textNoPuncDig = textNoPuncDig.translate(str.maketrans('', '', string.digits))
-    results['# words'] = numWords(textNoPuncDig)
     results['word length'] = round(wordLength(textNoPuncDig),2)
-    results['% short words'] = round(shortWords(textNoPuncDig),2)
-    results['# syllables'] = numSyllables(textNoPuncDig,'es')
-    results['# words > 2 syls'] = wordsMoreXSyls(text,2,'es')
+    results['\# syllables'] = numSyllables(textNoPuncDig,'es')
     results['syllables/word'] = round(numSyllables(textNoPuncDig,'es')/numWords(textNoPuncDig),2)
 
     # text richness measures
     results['type/token ratio'] = round(ttr(text.lower())*100,2)
     results['type/word ratio'] = round(ttr(textNoPuncDig.lower())*100,2)
-    results['% hapax legomena'] = round(hapaxLegomena_ratio(textNoPuncDig.lower())*100,2)
-    results['% dislegomena'] = round(hapaxDislegomena_ratio(textNoPuncDig.lower())*100,2)
-    results['Yule K (tokens)'] = int(yuleK(text))
-    results['Yule K (words)'] = int(yuleK(textNoPuncDig))
+    results['\% hapax legomena'] = round(hapaxLegomena_ratio(textNoPuncDig.lower())*100,2)
+    results['\% dislegomena'] = round(hapaxDislegomena_ratio(textNoPuncDig.lower())*100,2)
+    results['Entropy (tokens)'] = round(shannonEntropy(text),2)
+    results['Entropy (words)'] = round(shannonEntropy(textNoPuncDig),2)
+    results['Yule K (tokens)'] = round(yuleK(text),2)
+    results['Yule K (words)'] = round(yuleK(textNoPuncDig),2)
 
     # text complexity measures
-    results['Fernandez Huerta'] = round(fernandezHuerta_ease(sentencesNoPunctDic,'es'),2)
-    results['Szigriszt-Pazos/INFLEZ'] = round(fleschSzigriszt(sentencesNoPunctDic,'es'),2)
+    results['% short words (<4chars)'] = round(shortWords(textNoPuncDig),2)
+    results['\# words $>$ 2 syls'] = wordsMoreXSyls(textNoPuncDig,2,'es')
+    results['Fernandez Huerta'] = round(fernandezHuerta_ease(sentencesNoPunctDig,'es'),2)
+    results['Szigriszt-Pazos/INFLEZ'] = round(fleschSzigriszt(sentencesNoPunctDig,'es'),2)
     results['(tok) Fernandez Huerta'] = round(fernandezHuerta_ease(sentences,'es'),2)
     results['(tok) Szigriszt-Pazos/INFLEZ'] = round(fleschSzigriszt(sentences,'es'),2)
+     
+    sentencesNoSW = removeSWList(sentencesNoPunctDig,args.stopWordFile)
+    print(sentencesNoSW)
+    G = adjG(sentencesNoSW)
+    results['Laplacian Energy'] = round(laplacianEnergy(G),2)
+    results['Clustering'] = round(clusteringGraph(G),2)
  
     if (args.v):
        printResults(results, 'v')
