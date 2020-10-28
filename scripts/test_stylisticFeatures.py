@@ -50,6 +50,12 @@ class StylisticFeaturesTestCase(unittest.TestCase):
         self.assertEqual(sf.numWords(paragraph),15,'Counting the total number of words in an array fails')
         self.assertEqual(sf.numWords(paragraph[0]),8,'Counting the total number of words in a string fails')
 
+    def testkMostFreqWords(self): 
+        paragraph = []
+        paragraph.append("How many short words can you count ?" )
+        paragraph.append("How many letters have words here ?")
+        self.assertCountEqual(sf.kMostFreqWords(paragraph,1),[('how',2)],'Counting the most frequent words in an array fails')
+        self.assertCountEqual(sf.kMostFreqWords(paragraph[0],2),[('how',1),('many',1)],'Counting the most frequent words in a string fails')
 
     def testLegomena(self):
         text='in corpus linguistics a hapax legomenon is a word that occurs only once within a context ' + \
@@ -139,7 +145,7 @@ class StylisticFeaturesTestCase(unittest.TestCase):
         # sílabas 129 (vs 123), palabras 59
         # Differences come because of errors in counting syllables
         self.assertEqual(round(sf.fernandezHuerta_ease(document,'es'),2),69.72,'The Fernandez Huerta reading-ease index is incorrect for a document')
-        self.assertEqual(round(sf.fleschSzigriszt(document,'es'),2),65.16,'The Fernandez Huerta reading-ease index is incorrect for a document')
+        self.assertEqual(round(sf.fleschSzigriszt(document,'es'),2),65.16,'The Szigriszt-Pazos/INFLEZ reading-ease index is incorrect for a document')
 
 
 # Let's start!

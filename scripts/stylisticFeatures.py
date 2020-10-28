@@ -57,13 +57,14 @@ def printResults(results, position):
        print(results)
     else:
        for key, value in results.items():
-           print(key.ljust(30, ' ') + " & " + str(value))  
-           #print( " & " + str(value))  
+           #print(key.ljust(30, ' ') + " & " + str(value))  
+           print( " & " + str(value).ljust(10, ' ') + "\\")  
 
 
 def removeSWList(document, stopwordsFile):
     '''
     Removes all stopwords appearing in stopwordsFile from a list of sentences
+    The output is lowercased
     '''
     fn = os.path.join(os.path.dirname(__file__), stopwordsFile)
     with open(fn) as f:
@@ -72,7 +73,7 @@ def removeSWList(document, stopwordsFile):
         functionWord[i] = functionWord[i].strip()    
     cleanDocument = []
     for sentence in document:
-        cleanDocument.append(" ".join([w for w in sentence.split() if not w in functionWord]))
+        cleanDocument.append(" ".join([w.lower() for w in sentence.split() if not w.lower() in functionWord]))
     return cleanDocument
 
 
@@ -295,7 +296,10 @@ def shannonEntropy(text):
     word_list = text.split()
     freqs = Counter(tok.lower() for tok in word_list)
     numWords = sum(freqs.values()) 
-    return sum(freq/numWords * log2(numWords/freq) for freq in freqs.values())
+    try:
+       return sum(freq/numWords * log2(numWords/freq) for freq in freqs.values())
+    except ZeroDivisionError:
+       return 0
 
 
 # Complexity measures word level; scope: collection
@@ -323,7 +327,7 @@ def numSyllables(text, lan):
     if (type(text)==str):
         words = text.split()
         for w in words:
-            #Sprint(str(p.inserted(w)))
+            #print(str(p.inserted(w)))
             sylCounts = sylCounts + len(p.positions(w))+1    
     else:
         for sentence in text:
@@ -368,6 +372,18 @@ def countHyphenatedWords(text):
             if(len(re.findall(pattern, sentence)) > 0):
                wordCounts += len(re.findall(pattern,sentence))
     return wordCounts
+
+
+def kMostFreqWords(text, k):
+    """
+    Most frequent words in an array of sentences or a string
+    """
+    words = []
+    if (type(text)==str):
+       words = text.lower().split()
+    else:
+       words = [i.lower() for item in text for i in item.split()]
+    return Counter(words).most_common(k)
 
 
 def gunningFog(document, lan): 
@@ -472,8 +488,11 @@ def laplacianEnergy(G):
     # max_eig = sorted(eigs)[1]
     # Laplacian energy: sum of squares (not here!) of the eigenvalues in the Laplacian matrix
     # normalized Laplacian energy, see paper
-    eigs = [np.abs(x-1) for x in eigs]
-    return [sum(eigs)/float(len(eigs))]
+    eigs = [np.abs(x-1) for x in eigs]   
+    try:
+       return sum(eigs)/float(len(eigs))
+    except ZeroDivisionError:
+       return 0
 
 
 def clusteringGraph(G):
@@ -529,29 +548,30 @@ def main(args=None):
     results['\% hapax legomena'] = round(hapaxLegomena_ratio(textNoPuncDig.lower())*100,2)
     results['\% dislegomena'] = round(hapaxDislegomena_ratio(textNoPuncDig.lower())*100,2)
     results['Entropy (tokens)'] = round(shannonEntropy(text),2)
-    results['Entropy (words)'] = round(shannonEntropy(textNoPuncDig),2)
+    results['Entropy (words)'] = round(shannonEntropy(textNoPuncDig.lower()),2)
     results['Yule K (tokens)'] = round(yuleK(text),2)
-    results['Yule K (words)'] = round(yuleK(textNoPuncDig),2)
+    results['Yule K (words)'] = round(yuleK(textNoPuncDig.lower()),2)
 
     # text complexity measures
-    results['% short words (<4chars)'] = round(shortWords(textNoPuncDig),2)
+    results['\% short words ($<$4chars)'] = round(shortWords(textNoPuncDig),2)
     results['\# words $>$ 2 syls'] = wordsMoreXSyls(textNoPuncDig,2,'es')
     results['Fernandez Huerta'] = round(fernandezHuerta_ease(sentencesNoPunctDig,'es'),2)
     results['Szigriszt-Pazos/INFLEZ'] = round(fleschSzigriszt(sentencesNoPunctDig,'es'),2)
     results['(tok) Fernandez Huerta'] = round(fernandezHuerta_ease(sentences,'es'),2)
     results['(tok) Szigriszt-Pazos/INFLEZ'] = round(fleschSzigriszt(sentences,'es'),2)
      
-    sentencesNoSW = removeSWList(sentencesNoPunctDig,args.stopWordFile)
-    print(sentencesNoSW)
+    sentencesNoSW = removeSWList(sentencesNoPunctDig,args.stopWordFile) # lowercased output!
     G = adjG(sentencesNoSW)
-    results['Laplacian Energy'] = round(laplacianEnergy(G),2)
-    results['Clustering'] = round(clusteringGraph(G),2)
+    results['Laplacian Energy'] = round(laplacianEnergy(G),4)
+    results['Clustering'] = round(clusteringGraph(G),4)
  
     if (args.v):
        printResults(results, 'v')
     else:
        printResults(results, 'h')
 
+    print("Most common content words:")
+    print(kMostFreqWords(sentencesNoSW,11))
 
 if __name__ == "__main__":
    main()
