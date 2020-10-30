@@ -107,6 +107,7 @@ fuimos
 fuiste
 fuisteis
 ha
+haber
 habéis
 había
 habíais
@@ -210,6 +211,7 @@ sentida
 sentidas
 sentido
 sentidos
+ser
 será
 serán
 serás
@@ -253,6 +255,7 @@ tendrías
 tened
 tenéis
 tenemos
+tener
 tenga
 tengáis
 tengamos
@@ -275,6 +278,7 @@ tienen
 tienes
 todo
 todos
+tras
 tu
 tú
 tus
