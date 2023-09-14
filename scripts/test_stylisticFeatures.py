@@ -11,6 +11,7 @@ import stylisticFeatures as sf
 
 SWfile_en = '../resources/sw/en.sw'
 SWfile_es = '../resources/sw/es.sw'
+SWfile_es = '../resources/sw/de.sw'
 
 class StylisticFeaturesTestCase(unittest.TestCase):
 
@@ -146,6 +147,15 @@ class StylisticFeaturesTestCase(unittest.TestCase):
         # Differences come because of errors in counting syllables
         self.assertEqual(round(sf.fernandezHuerta_ease(document,'es'),2),69.72,'The Fernandez Huerta reading-ease index is incorrect for a document')
         self.assertEqual(round(sf.fleschSzigriszt(document,'es'),2),65.16,'The Szigriszt-Pazos/INFLEZ reading-ease index is incorrect for a document')
+
+    def testGermanReadability(self):
+        document = []
+        document.append("Alle meine Entchen schwimmen auf dem See Köpfchen unters Wasser Schwänzchen in die Höh ")
+        # FREde=74
+	# WSTF1 = 0,1935*0 + 0,1672*14 + 0,1297*29 − 0,0327*43 − 0,875 = 3,8
+        # Differences come because of errors in counting syllables
+        self.assertEqual(round(sf.flesch_reading_ease(document,'de'),0),74,'The Flesh reading-ease index is incorrect for a document')
+        self.assertEqual(round(sf.wienerSTF(document,'de'),1),3.8,'Wiener Sachtextformel index is incorrect for a document')
 
 
 # Let's start!

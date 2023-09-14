@@ -535,8 +535,9 @@ def wienerSTF(document, lan):
     ES is the percentage of words with one syllable.
     """
     try:
-       return (0.1935*wordsMoreXSyls(document,3,lan)/numWords(document) + 0.1672*numWords(document)/numSentences(document) \
-               + 0.1297*longWords(document,6) - 0.0327*wordsLessXSyls(document,2,lan) - 0.875)
+       return (0.1935*wordsMoreXSyls(document,3,lan)/numWords(document)/numSentences(document)*100 + \
+               0.1672*numWords(document)/numSentences(document) + 0.1297*longWords(document,6)/numSentences(document)*100 - \
+               0.0327*wordsLessXSyls(document,2,lan)/numWords(document)/numSentences(document)*100 - 0.875)
     except ZeroDivisionError:
        return 0
 
