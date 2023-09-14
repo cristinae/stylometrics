@@ -171,11 +171,20 @@ def longWords(text, threshold):
     Text must be tokenised and no \n can be used to join sentences
     Think about removing puntuation
     """
-    words = text.split()
     longCounts = 0
-    for w in words:
-      if len(w) > threshold:
-        longCounts += 1
+    words = ''
+    if (type(text)==str):
+       words = text.split()
+       for w in words:
+         if len(w) > threshold:
+            gilongCounts += 1
+    else:
+       for sentence in text:
+           words = sentence.split()
+           for w in words:
+              if len(w) > threshold:
+                 longCounts += 1
+    
     try:
        return longCounts/len(words)
     except ZeroDivisionError:
@@ -527,7 +536,7 @@ def wienerSTF(document, lan):
     """
     try:
        return (0.1935*wordsMoreXSyls(document,3,lan)/numWords(document) + 0.1672*numWords(document)/numSentences(document) \
-               + 0.1297*longWords(text,6) - 0.0327*wordsLessXSyls(document,2,lan) - 0.875)
+               + 0.1297*longWords(document,6) - 0.0327*wordsLessXSyls(document,2,lan) - 0.875)
     except ZeroDivisionError:
        return 0
 
