@@ -8,7 +8,7 @@
     would require more measures (to be implemented)
     TODO: prepare a nice package
     Date: 21.10.2020
-    Last modified: 25.10.2020
+    Last modified: 13.9.2023
     Author: cristinae
 """
 
@@ -41,7 +41,7 @@ def get_parser():
                     required=False,
                     type=str,
                     default="../resources/sw/es.sw", 
-                    help="File with the list of function word for the language" )
+                    help="File with the list of function words for the language" )
     parser.add_argument('--v', 
 		    action='store_true', 
                     help="Prints the output in vertical format")
@@ -165,6 +165,22 @@ def shortWords(text):
     except ZeroDivisionError:
        return 0
 
+def longWords(text, threshold): 
+    """
+    Percentage of long words (> threshold chars)
+    Text must be tokenised and no \n can be used to join sentences
+    Think about removing puntuation
+    """
+    words = text.split()
+    longCounts = 0
+    for w in words:
+      if len(w) > threshold:
+        longCounts += 1
+    try:
+       return longCounts/len(words)
+    except ZeroDivisionError:
+       return 0
+
 
 # Text statistics/richness; word level; scope: collection
 def numWords(document): 
@@ -179,6 +195,18 @@ def numWords(document):
         for sentence in document:
             wordCounts = wordCounts + len(sentence.split())
     return wordCounts
+
+def numSentences(document): 
+    """
+    Number of sentences in document (array of sentences)
+    """
+    sentencesCounts = 0
+    if (type(document)==str):
+        sentencesCounts = 1
+    else:
+        for sentence in document:
+            sentencesCounts = sentencesCounts + 1
+    return sentencesCounts
 
 
 def numTypes(document): 
@@ -357,6 +385,25 @@ def wordsMoreXSyls(text, x, lan):
                    wordCounts += 1
     return wordCounts
 
+def wordsLessXSyls(text, x, lan):
+    """
+    Number of words with less than X syllables in a text
+    """
+    p = pyphen.Pyphen(lang=lan)
+    wordCounts = 0
+    if (type(text)==str):
+        words = text.split()
+        for w in words:
+            #print(p.inserted(w))
+            if(len(p.positions(w))+1<x):
+               wordCounts += 1
+    else:
+        for sentence in text:
+            words = sentence.split()
+            for w in words:
+                if(len(p.positions(w))+1<x):
+                   wordCounts += 1
+    return wordCounts
 
 def countHyphenatedWords(text):
     """
@@ -406,9 +453,29 @@ def flesch_reading_ease(document, lan):
     Higher scores indicate material that is easier to read; 
     lower numbers mark passages that are more difficult to read.
     206.835 - 1.015(words/sentences) - 84.6(syllables/words)
+    For German:
+    https://books.google.at/books?id=kiI7vwEACAAJ
+    A System for Assessing the Readability of German Text
+    https://aifb.kit.edu/images/0/0b/Readability_ECIR2023.pdf
+     FREdeutsch = 180 − (words/sentences) − 58.5(syllables/words)
     """
+    if(lan=="en"):
+      A=206.835
+      B=1.015
+      C=84.6
+    elif(lan=="de"):
+      A=180
+      B=1
+      C=58.5
+    else:
+      A=0
+      B=0
+      C=0
+      print("Language is not covered")
+      return 0
+    
     try:
-       return (206.835 - 1.015*sentenceLength(document) - 84.6*numSyllables(document,lan)/numWords(document))
+       return (A - B*sentenceLength(document) - C*numSyllables(document,lan)/numWords(document))
     except ZeroDivisionError:
        return 0
 
@@ -443,6 +510,28 @@ def fleschSzigriszt(document, lan):
        return (206.84 - 62.3*numSyllables(document,lan)/numWords(document) - sentenceLength(document))
     except ZeroDivisionError:
        return 0
+
+
+def wienerSTF(document, lan): 
+    """
+    Wiener Sachtextformel (WSTF)  
+    Bamberger, R., Vanecek, E.: Lesen-Verstehen-Lernen-Schreiben: die Schwierigkeitsstufen von Texten 
+    in deutscher Sprache. Jugend und Volk (1984)
+    Calculates readability in terms of Austrian/German grade levels. 
+    It ranges from four to fifteen with four being easy and 15 being very hard.
+    WSTF = 0.1935*MS + 0.1672*SL + 0.1297*IW − 0.0327*ES − 0.875.
+    MS is the percentage of words with more than three syllables, 
+    SL represents the mean of the number of words per sentence, 
+    IW denotes the percentage of words with more than six letters and 
+    ES is the percentage of words with one syllable.
+    """
+    try:
+       return (0.1935*wordsMoreXSyls(document,3,lan)/numWords(document) + 0.1672*numWords(document)/numSentences(document) \
+               + 0.1297*longWords(text,6) - 0.0327*wordsLessXSyls(document,2,lan) - 0.875)
+    except ZeroDivisionError:
+       return 0
+
+
 
 
 # Complexity measures, graph-based; scope: collection
