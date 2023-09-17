@@ -1,4 +1,4 @@
-
+print
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -8,7 +8,7 @@
     would require more measures (to be implemented)
     TODO: prepare a nice package
     Date: 21.10.2020
-    Last modified: 13.9.2023
+    Last modified: 14.9.2023
     Author: cristinae
 """
 
@@ -37,10 +37,15 @@ def get_parser():
                     type=str,
                     default="", 
                     help="Input file" )
+    parser.add_argument('--lan',
+                    required=False,
+                    type=str,
+                    default="de", 
+                    help="Language of the input text" )
     parser.add_argument('--stopWordFile',
                     required=False,
                     type=str,
-                    default="../resources/sw/es.sw", 
+                    default="../resources/sw/de.sw", 
                     help="File with the list of function words for the language" )
     parser.add_argument('--v', 
 		    action='store_true', 
@@ -53,12 +58,12 @@ def get_parser():
 
 
 def printResults(results, position):
-    if (position is 'h'):
+    if (position == 'h'):
        print(results)
     else:
        for key, value in results.items():
            #print(key.ljust(30, ' ') + " & " + str(value))  
-           print( " & " + str(value).ljust(10, ' ') + "\\")  
+           print( " & " + str(value).ljust(10, ' ') + "\\\\")  
 
 
 def removeSWList(document, stopwordsFile):
@@ -177,7 +182,7 @@ def longWords(text, threshold):
        words = text.split()
        for w in words:
          if len(w) > threshold:
-            gilongCounts += 1
+            longCounts += 1
     else:
        for sentence in text:
            words = sentence.split()
@@ -521,9 +526,9 @@ def fleschSzigriszt(document, lan):
        return 0
 
 
-def wienerSTF(document, lan): 
+def wienerSTF(document, sentences, lan): 
     """
-    Wiener Sachtextformel (WSTF)  
+    Wiener Sachtextformel (WSTF)  for German exclusively
     Bamberger, R., Vanecek, E.: Lesen-Verstehen-Lernen-Schreiben: die Schwierigkeitsstufen von Texten 
     in deutscher Sprache. Jugend und Volk (1984)
     Calculates readability in terms of Austrian/German grade levels. 
@@ -535,9 +540,8 @@ def wienerSTF(document, lan):
     ES is the percentage of words with one syllable.
     """
     try:
-       return (0.1935*wordsMoreXSyls(document,3,lan)/numWords(document)/numSentences(document)*100 + \
-               0.1672*numWords(document)/numSentences(document) + 0.1297*longWords(document,6)/numSentences(document)*100 - \
-               0.0327*wordsLessXSyls(document,2,lan)/numWords(document)/numSentences(document)*100 - 0.875)
+       return (0.1935*wordsMoreXSyls(document,2,lan)/numWords(document)*100 + 0.1672*sentenceLength(sentences) \
+               + 0.1297*longWords(document,5)*100 - 0.0327*wordsLessXSyls(document,2,lan)/numWords(document)*100 - 0.875)
     except ZeroDivisionError:
        return 0
 
@@ -613,6 +617,7 @@ def main(args=None):
     parser = get_parser()
     args = parser.parse_args(args)
  
+    lan = args.lan
     # read input file
     with open(args.iFile) as f:
          text = f.read().replace("\n", " ")
@@ -629,40 +634,45 @@ def main(args=None):
     # text statistics measures
     results['\# sentences'] = len(sentences)
     results['\# tokens'] = numWords(text)
-    results['\# types'] = numTypes(text.lower())
-    results['\% digits (dig)'] = round(digit_pctg(text)*100,2)
-    results['\% uppercase'] = round(uppercase_pctg(text)*100,2)
-    results['\% punctuation (punc)'] = round(punctuation_pctg(text)*100,2)
-    results['\% funtion words'] = round(functionWords_freq(text.lower(), args.stopWordFile)*100,2)
     results['\# words (w/o punc,dig)'] = numWords(textNoPuncDig)
-    results['sentence length'] = round(sentenceLength(sentences),2)
-    results['token length'] = round(wordLength(text),2)
-    results['word length'] = round(wordLength(textNoPuncDig),2)
-    results['\# syllables'] = numSyllables(textNoPuncDig,'es')
-    results['syllables/word'] = round(numSyllables(textNoPuncDig,'es')/numWords(textNoPuncDig),2)
+    results['\# types'] = numTypes(textNoPuncDig.lower())
+    #results['\% digits (dig)'] = round(digit_pctg(text)*100,2)
+    #results['\% uppercase'] = round(uppercase_pctg(text)*100,2)
+    #results['\% punctuation (punc)'] = round(punctuation_pctg(text)*100,2)
+    results['\% funtion words'] = round(functionWords_freq(text.lower(), args.stopWordFile)*100,1)
+    results['sentence length (words)'] = round(sentenceLength(sentences),1)
+    #results['token length'] = round(wordLength(text),2)
+    results['word length (chars)'] = round(wordLength(textNoPuncDig),1)
+    #results['\# syllables'] = numSyllables(textNoPuncDig,'de')
+    #results['syllables/word'] = round(numSyllables(textNoPuncDig,'de')/numWords(textNoPuncDig),2)
 
     # text richness measures
-    results['type/token ratio'] = round(ttr(text.lower())*100,2)
-    results['type/word ratio'] = round(ttr(textNoPuncDig.lower())*100,2)
-    results['\% hapax legomena'] = round(hapaxLegomena_ratio(textNoPuncDig.lower())*100,2)
-    results['\% dislegomena'] = round(hapaxDislegomena_ratio(textNoPuncDig.lower())*100,2)
-    results['Entropy (tokens)'] = round(shannonEntropy(text),2)
-    results['Entropy (words)'] = round(shannonEntropy(textNoPuncDig.lower()),2)
-    results['Yule K (tokens)'] = round(yuleK(text),2)
-    results['Yule K (words)'] = round(yuleK(textNoPuncDig.lower()),2)
+    #results['type/token ratio'] = round(ttr(text.lower())*100,2)
+    results['type/word ratio'] = round(ttr(textNoPuncDig.lower())*100,1)
+    results['\% hapax legomena'] = round(hapaxLegomena_ratio(textNoPuncDig.lower())*100,1)
+    #results['\% dislegomena'] = round(hapaxDislegomena_ratio(textNoPuncDig.lower())*100,2)
+    #results['Entropy (tokens)'] = round(shannonEntropy(text),2)
+    results['Entropy (words)'] = round(shannonEntropy(textNoPuncDig.lower()),1)
+    #results['Yule K (tokens)'] = round(yuleK(text),2)
+    results['Yule K (words)'] = round(yuleK(textNoPuncDig.lower()),1)
 
     # text complexity measures
-    results['\% short words ($<$4chars)'] = round(shortWords(textNoPuncDig),2)
-    results['\# words $>$ 2 syls'] = wordsMoreXSyls(textNoPuncDig,2,'es')
-    results['Fernandez Huerta'] = round(fernandezHuerta_ease(sentencesNoPunctDig,'es'),2)
-    results['Szigriszt-Pazos/INFLEZ'] = round(fleschSzigriszt(sentencesNoPunctDig,'es'),2)
-    results['(tok) Fernandez Huerta'] = round(fernandezHuerta_ease(sentences,'es'),2)
-    results['(tok) Szigriszt-Pazos/INFLEZ'] = round(fleschSzigriszt(sentences,'es'),2)
+    results['\% short words ($<$4chars)'] = round(shortWords(textNoPuncDig)*100,1)
+    #results['\# words $>$ 2 syls'] = wordsMoreXSyls(textNoPuncDig,2,lan)
+    results['\% words $>$ 2 syls'] = round(wordsMoreXSyls(textNoPuncDig,2,lan)/numWords(textNoPuncDig)*100,1)
+    results['Flesch Reading Ease'] = round(flesch_reading_ease(sentencesNoPunctDig,lan),1)
+    if (lan == 'es'):
+       results['Fernandez Huerta'] = round(fernandezHuerta_ease(sentencesNoPunctDig,lan),2)
+       results['Szigriszt-Pazos/INFLEZ'] = round(fleschSzigriszt(sentencesNoPunctDig,lan),2)
+       results['(tok) Fernandez Huerta'] = round(fernandezHuerta_ease(sentences,lan),2)
+       results['(tok) Szigriszt-Pazos/INFLEZ'] = round(fleschSzigriszt(sentences,lan),2)
+    elif (lan == 'de'):
+       results['Wiener Sachtextformel'] = round(wienerSTF(textNoPuncDig,sentencesNoPunctDig,lan),1)
      
     sentencesNoSW = removeSWList(sentencesNoPunctDig,args.stopWordFile) # lowercased output!
     G = adjG(sentencesNoSW)
-    results['Laplacian Energy'] = round(laplacianEnergy(G),4)
-    results['Clustering'] = round(clusteringGraph(G),4)
+    #results['Laplacian Energy'] = round(laplacianEnergy(G),4)
+    #results['Clustering'] = round(clusteringGraph(G),4)
  
     if (args.v):
        printResults(results, 'v')
